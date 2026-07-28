@@ -1,0 +1,39 @@
+default_provider: litellm
+
+routing_rules:
+  planning:
+    primary: anthropic/claude-3-5-sonnet-20241022
+    fallback: openai/gpt-4o
+    cost_ceiling_usd_per_1k: 0.015
+    max_latency_ms: 15000
+
+  implement:
+    primary: anthropic/claude-3-5-haiku-20241022
+    fallback: ollama/qwen2.5-coder:14b
+    cost_ceiling_usd_per_1k: 0.005
+    max_latency_ms: 30000
+
+  test:
+    primary: openai/gpt-4o-mini
+    fallback: ollama/qwen2.5-coder:7b
+    cost_ceiling_usd_per_1k: 0.001
+    max_latency_ms: 20000
+
+  review:
+    primary: anthropic/claude-3-5-sonnet-20241022
+    fallback: openai/gpt-4o
+    cost_ceiling_usd_per_1k: 0.015
+    max_latency_ms: 20000
+
+  document:
+    primary: ollama/llama3.2:3b
+    fallback: openai/gpt-4o-mini
+    cost_ceiling_usd_per_1k: 0.0005
+    max_latency_ms: 15000
+
+benchmark_suite:
+  interval_seconds: 3600
+  test_tasks:
+    - id: test_syntax_gen
+      prompt: "Write a python function to compute fibonacci sequence recursively with memoization."
+      expected_tokens: 150

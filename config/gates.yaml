@@ -1,0 +1,25 @@
+gates:
+  eval_gate:
+    enabled: true
+    provider: promptfoo
+    min_score: 0.85
+    suites:
+      - tests/evals/accuracy_suite.yaml
+
+  review_gate:
+    enabled: true
+    strict_defensive_coding: true
+    disallow_eval_exec: true
+    require_docstrings: true
+    max_line_length: 120
+    rules_file: "RULES.md"
+
+  test_gate:
+    enabled: true
+    runner: pytest
+    min_coverage_pct: 80.0
+    fail_fast: true
+
+capability_diagnosis:
+  auto_remediate_rules: true
+  max_retries_per_task: 3

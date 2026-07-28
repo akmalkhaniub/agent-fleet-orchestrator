@@ -1,0 +1,35 @@
+default_adapter: aider
+
+adapters:
+  aider:
+    name: Aider
+    type: open_source
+    command: aider
+    args: ["--no-auto-commits", "--yes-always"]
+    supports_models: ["claude-3-5-sonnet", "gpt-4o", "ollama/qwen2.5-coder"]
+    env:
+      AIDER_DARK_MODE: "true"
+
+  claude_code:
+    name: Claude Code
+    type: commercial
+    command: claude
+    args: ["--non-interactive"]
+    supports_models: ["claude-3-5-sonnet", "claude-3-5-haiku"]
+    env: {}
+
+  cline:
+    name: Cline
+    type: open_source
+    command: cline
+    args: ["--auto-approve"]
+    supports_models: ["gpt-4o", "claude-3-5-sonnet"]
+    env: {}
+
+  mock_agent:
+    name: Mock Agent Worker
+    type: testing
+    command: mock
+    args: []
+    supports_models: ["mock-model"]
+    env: {}
