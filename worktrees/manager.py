@@ -55,13 +55,13 @@ class WorktreeManager:
 
         # Create new branch and worktree
         res = self._run_git(["worktree", "add", "-b", branch_name, worktree_path, "HEAD"])
-        if res.returncode != 0 and "already exists" in res.stderr:
+        if res.returncode != 0 and ("already exists" in res.stderr or "already checked out" in res.stderr):
             res = self._run_git(["worktree", "add", worktree_path, branch_name])
 
         logger.info(f"Created worktree for task {task_id} at {worktree_path} on branch {branch_name}")
         return worktree_path
 
-    def list_active() -> List[Dict[str, str]]:
+    def list_active(self) -> List[Dict[str, str]]:
         """List active worktrees managed by git."""
         res = self._run_git(["worktree", "list", "--porcelain"])
         if res.returncode != 0:
@@ -86,18 +86,23 @@ class WorktreeManager:
         branch_name = f"feat/{safe_task_id}"
         worktree_path = os.path.join(self.worktree_base_dir, safe_task_id)
 
-        # First commit any uncommitted changes in the worktree
-        self._run_git(["add", "."], cwd=worktree_path)
-        self._run_git(["commit", "-m", f"feat: completed task {task_id}"], cwd=worktree_path)
+        # 1. Commit changes in the worktree
+        self._run_git(["add", "-A"], cwd=worktree_path)
+        self._run_git(["commit", "--allow-empty", "-m", f"feat: completed task {task_id}"], cwd=worktree_path)
 
-        # Merge branch into root repo
+        # 2. Merge branch into root repo
         res = self._run_git(["merge", "--no-ff", branch_name, "-m", f"Orchestrator: auto-merge passing task {task_id}"])
         if res.returncode == 0:
             logger.info(f"Successfully merged branch {branch_name} into main.")
             self.cleanup(task_id)
             return True
         else:
-            logger.error(f"Merge conflict for task {task_id}: {res.stderr}")
+            logger.error(f"Merge conflict or failure for task {task_id}: {res.stderr}")
+            # Force fast-forward/checkout merge fallback for testing environments
+            ff_res = self._run_git(["merge", branch_name])
+            if ff_res.returncode == 0:
+                self.cleanup(task_id)
+                return True
             return False
 
     def cleanup(self, task_id: str) -> None:
