@@ -9,6 +9,10 @@ from gates.pipeline import QualityGatePipeline
 from agents.base import BaseAgentAdapter
 from agents.aider_adapter import AiderAdapter
 from agents.claude_code_adapter import ClaudeCodeAdapter
+from agents.opencode_adapter import OpenCodeAdapter
+from agents.openhands_adapter import OpenHandsAdapter
+from agents.goose_adapter import GooseAdapter
+from agents.swe_agent_adapter import SWEAgentAdapter
 from agents.mock_adapter import MockAgentAdapter
 
 logger = logging.getLogger("orchestrator.core")
@@ -23,6 +27,10 @@ class OrchestratorEngine:
         self.worktree_mgr = WorktreeManager(repo_path=repo_path)
         self.gate_pipeline = QualityGatePipeline()
         self.adapters: Dict[str, BaseAgentAdapter] = {
+            "openhands": OpenHandsAdapter(),
+            "goose": GooseAdapter(),
+            "opencode": OpenCodeAdapter(),
+            "swe_agent": SWEAgentAdapter(),
             "aider": AiderAdapter(),
             "claude_code": ClaudeCodeAdapter(),
             "mock_agent": MockAgentAdapter(),
@@ -34,34 +42,44 @@ class OrchestratorEngine:
 
         task_impl = Task(
             id="task-1-impl",
-            title=f"Implement core logic for {feature_title}",
+            title=f"Implement core AST scanner & logic for {feature_title}",
             description=feature_description,
             role=TaskRole.IMPLEMENT,
-            target_files=["src/feature_core.py"],
+            target_files=["demo-apps/sentinel-security/src/scanner.py", "demo-apps/sentinel-security/src/remediator.py"],
             agent_type="mock_agent",
         )
         task_test = Task(
             id="task-2-test",
-            title=f"Write test suite for {feature_title}",
-            description="Write pytest tests for synthesized feature code.",
+            title=f"Write pytest security suite for {feature_title}",
+            description="Write pytest tests verifying scanner accuracy and patch generation.",
             role=TaskRole.TEST,
             dependencies=["task-1-impl"],
-            target_files=["tests/test_feature_core.py"],
+            target_files=["demo-apps/sentinel-security/tests/test_sentinel.py"],
             agent_type="mock_agent",
         )
         task_doc = Task(
             id="task-3-doc",
-            title=f"Write documentation for {feature_title}",
-            description="Document API endpoints and architecture decisions.",
+            title=f"Write security spec & docs for {feature_title}",
+            description="Document vulnerability taxonomy and remediation guidelines.",
             role=TaskRole.DOCUMENT,
             dependencies=["task-1-impl"],
-            target_files=["docs/feature_core.md"],
+            target_files=["demo-apps/sentinel-security/docs/sentinel_spec.md"],
+            agent_type="mock_agent",
+        )
+        task_ui = Task(
+            id="task-4-ui",
+            title=f"Build web dashboard for {feature_title}",
+            description="Create interactive scanner UI with live patch preview.",
+            role=TaskRole.IMPLEMENT,
+            dependencies=["task-1-impl"],
+            target_files=["demo-apps/sentinel-security/web/app.py"],
             agent_type="mock_agent",
         )
 
         graph.tasks[task_impl.id] = task_impl
         graph.tasks[task_test.id] = task_test
         graph.tasks[task_doc.id] = task_doc
+        graph.tasks[task_ui.id] = task_ui
 
         return graph
 

@@ -1,6 +1,38 @@
-default_adapter: aider
+default_adapter: openhands
 
 adapters:
+  swe_agent:
+    name: SWE-agent
+    type: open_source
+    command: swe-agent
+    args: ["run"]
+    supports_models: ["claude-3-5-sonnet", "gpt-4o"]
+    env: {}
+
+  openhands:
+    name: OpenHands Agent
+    type: open_source
+    command: openhands
+    args: ["--headless", "--agent", "CodeActAgent"]
+    supports_models: ["claude-3-5-sonnet", "gpt-4o", "ollama/qwen2.5-coder"]
+    env: {}
+
+  goose:
+    name: Goose Agent
+    type: open_source
+    command: goose
+    args: ["run", "--no-interactive"]
+    supports_models: ["claude-3-5-sonnet", "gpt-4o"]
+    env: {}
+
+  opencode:
+    name: OpenCode Agent
+    type: open_source
+    command: opencode
+    args: ["run", "--non-interactive"]
+    supports_models: ["claude-3-5-sonnet", "gpt-4o", "ollama/qwen2.5-coder"]
+    env: {}
+
   aider:
     name: Aider
     type: open_source

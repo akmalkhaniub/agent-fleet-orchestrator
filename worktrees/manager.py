@@ -28,14 +28,16 @@ class WorktreeManager:
             self._run_git(["init", "-b", "main"])
             self._run_git(["config", "user.name", "Fleet Orchestrator"])
             self._run_git(["config", "user.email", "orchestrator@local"])
-            self._run_git(["add", "."])
-            self._run_git(["commit", "-m", "Initial commit for Agent Fleet Orchestrator"])
+            self._run_git(["add", "-A"])
+            self._run_git(["commit", "--allow-empty", "-m", "Initial commit for Agent Fleet Orchestrator"])
         else:
             # Check if repo has any commits, if not make one
             res = self._run_git(["rev-parse", "HEAD"])
             if res.returncode != 0:
-                self._run_git(["add", "."])
-                self._run_git(["commit", "-m", "Initial commit for Agent Fleet Orchestrator"])
+                self._run_git(["config", "user.name", "Fleet Orchestrator"])
+                self._run_git(["config", "user.email", "orchestrator@local"])
+                self._run_git(["add", "-A"])
+                self._run_git(["commit", "--allow-empty", "-m", "Initial commit for Agent Fleet Orchestrator"])
 
     def _run_git(self, args: List[str], cwd: Optional[str] = None) -> subprocess.CompletedProcess:
         cwd = cwd or self.repo_path
@@ -49,9 +51,10 @@ class WorktreeManager:
         branch_name = f"feat/{safe_task_id}"
         worktree_path = os.path.join(self.worktree_base_dir, safe_task_id)
 
-        if os.path.exists(worktree_path):
-            logger.info(f"Worktree path already exists at {worktree_path}, reusing.")
-            return worktree_path
+
+
+        # Ensure clean state by calling cleanup first
+        self.cleanup(task_id)
 
         # Create new branch and worktree
         res = self._run_git(["worktree", "add", "-b", branch_name, worktree_path, "HEAD"])

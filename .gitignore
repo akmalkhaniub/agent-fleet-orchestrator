@@ -1,0 +1,14 @@
+# Worktrees & Execution Caches
+.worktrees/
+coordination/
+vendors/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.log
+
+# Dashboard build & node modules
+dashboard/.next/
+dashboard/node_modules/
+dashboard/out/
