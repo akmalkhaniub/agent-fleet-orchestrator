@@ -65,8 +65,8 @@ def test_quality_gate_pipeline(repo_dir):
 async def test_orchestrator_fleet_run(repo_dir):
     engine = OrchestratorEngine(repo_path=repo_dir)
     graph = engine.decompose_feature("Auth Microservice", "Build authentication REST endpoints.")
-    assert len(graph.tasks) == 3
+    assert len(graph.tasks) == 4
 
     summary = await engine.run_fleet(graph)
-    assert summary["completed"] == 3
+    assert summary["completed"] == 4
     assert summary["failed"] == 0

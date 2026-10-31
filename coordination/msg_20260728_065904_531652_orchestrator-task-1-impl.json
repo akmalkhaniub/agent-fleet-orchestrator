@@ -1,9 +1,0 @@
-{
-  "sender": "orchestrator-task-1-impl",
-  "timestamp": "2026-07-28T06:59:04.531722",
-  "payload": {
-    "action": "START_TASK",
-    "task_id": "task-1-impl",
-    "worktree": "G:\\ReplitProjects\\agent-fleet-orchestrator\\.worktrees\\task-1-impl"
-  }
-}

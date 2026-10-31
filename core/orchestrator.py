@@ -21,8 +21,9 @@ logger = logging.getLogger("orchestrator.core")
 class OrchestratorEngine:
     """Core Orchestrator Engine for decomposition, parallel fleet dispatch, and closed-loop gating."""
 
-    def __init__(self, repo_path: str = "."):
+    def __init__(self, repo_path: str = ".", max_retries: int = 2):
         self.repo_path = repo_path
+        self.max_retries = max_retries
         self.router = ModelRouter()
         self.worktree_mgr = WorktreeManager(repo_path=repo_path)
         self.gate_pipeline = QualityGatePipeline()
@@ -36,16 +37,33 @@ class OrchestratorEngine:
             "mock_agent": MockAgentAdapter(),
         }
 
-    def decompose_feature(self, feature_title: str, feature_description: str) -> TaskGraph:
+    def decompose_feature(
+        self,
+        feature_title: str,
+        feature_description: str,
+        custom_tasks: Optional[List[Task]] = None,
+    ) -> TaskGraph:
         """Decompose a high-level feature description into a DAG of specialized sub-tasks."""
         graph = TaskGraph(feature_title=feature_title, feature_description=feature_description)
+
+        if custom_tasks:
+            for t in custom_tasks:
+                graph.tasks[t.id] = t
+            return graph
+
+        slug = "".join(ch.lower() if ch.isalnum() else "_" for ch in feature_title).strip("_") or "feature"
+        default_targets = (
+            ["demo-apps/sentinel-security/src/scanner.py", "demo-apps/sentinel-security/src/remediator.py"]
+            if "sentinel" in slug or "security" in slug or "jwt" in slug
+            else [f"src/{slug}/service.py", f"src/{slug}/models.py"]
+        )
 
         task_impl = Task(
             id="task-1-impl",
             title=f"Implement core AST scanner & logic for {feature_title}",
             description=feature_description,
             role=TaskRole.IMPLEMENT,
-            target_files=["demo-apps/sentinel-security/src/scanner.py", "demo-apps/sentinel-security/src/remediator.py"],
+            target_files=default_targets,
             agent_type="mock_agent",
         )
         task_test = Task(
@@ -84,7 +102,7 @@ class OrchestratorEngine:
         return graph
 
     async def execute_task(self, task: Task, graph: TaskGraph) -> bool:
-        """Execute a single task in its own worktree, run quality gates, and merge if passing."""
+        """Execute a single task in its own worktree, run closed-loop quality gates with self-healing retries, and merge if passing."""
         logger.info(f"Dispatching task {task.id} ({task.title}) to agent fleet...")
         task.status = TaskStatus.RUNNING
 
@@ -102,64 +120,92 @@ class OrchestratorEngine:
             payload={"action": "START_TASK", "task_id": task.id, "worktree": worktree_path},
         )
 
-        # 4. Start agent worker
         adapter = self.adapters.get(task.agent_type or "mock_agent", self.adapters["mock_agent"])
-        run = await adapter.start_task(task, worktree_path)
+        base_description = task.description
 
-        # Poll until completion
-        while True:
-            status = await adapter.poll(run)
-            if status in [TaskStatus.PASSED, "completed", "failed"]:
-                break
-            await asyncio.sleep(0.5)
+        for attempt in range(self.max_retries + 1):
+            task.retry_count = attempt
+            run = await adapter.start_task(task, worktree_path)
 
-        res = await adapter.get_result(run)
-        if not res.success:
-            task.status = TaskStatus.FAILED
-            task.error_message = res.output_summary
-            return False
+            # Poll until completion
+            while True:
+                status = await adapter.poll(run)
+                if status in [TaskStatus.PASSED, "completed", "failed"]:
+                    break
+                await asyncio.sleep(0.05)
 
-        # 5. Quality Gate Evaluation (Closed-Loop)
-        task.status = TaskStatus.GATING
-        report: TaskGateReport = self.gate_pipeline.evaluate_task(task, worktree_path)
+            res = await adapter.get_result(run)
+            if not res.success:
+                task.status = TaskStatus.FAILED
+                task.error_message = res.output_summary
+                return False
 
-        if report.all_passed:
-            logger.info(f"Task {task.id} passed all 3 Quality Gates. Merging branch into main...")
-            merged = self.worktree_mgr.merge(task.id)
-            if merged:
-                task.status = TaskStatus.PASSED
-                self.worktree_mgr.post_coordination_message(
-                    sender_id=f"orchestrator-{task.id}",
-                    payload={"action": "PASSED_AND_MERGED", "task_id": task.id},
+            # 5. Quality Gate Evaluation (Closed-Loop)
+            task.status = TaskStatus.GATING
+            report: TaskGateReport = self.gate_pipeline.evaluate_task(task, worktree_path)
+
+            if report.all_passed:
+                logger.info(f"Task {task.id} passed all 3 Quality Gates. Merging branch into main...")
+                merged = self.worktree_mgr.merge(task.id)
+                if merged:
+                    task.status = TaskStatus.PASSED
+                    self.worktree_mgr.post_coordination_message(
+                        sender_id=f"orchestrator-{task.id}",
+                        payload={"action": "PASSED_AND_MERGED", "task_id": task.id, "attempts": attempt + 1},
+                    )
+                    return True
+                else:
+                    task.status = TaskStatus.FAILED
+                    task.error_message = "Git merge conflict."
+                    return False
+
+            # Self-healing feedback loop if retries remain
+            task.error_message = report.diagnosis
+            if attempt < self.max_retries:
+                logger.warning(
+                    f"Task {task.id} failed quality gates (attempt {attempt + 1}/{self.max_retries + 1}). "
+                    f"Feeding diagnosis back to worker for self-healing: {report.diagnosis}"
                 )
-                return True
+                task.description = (
+                    f"{base_description}\n\n[SELF-HEALING RETRY #{attempt + 1} TRACEBACK]:\n{report.diagnosis}"
+                )
+                task.status = TaskStatus.RUNNING
             else:
                 task.status = TaskStatus.FAILED
-                task.error_message = "Git merge conflict."
+                logger.error(f"Task {task.id} exhausted {self.max_retries + 1} attempts. Marking FAILED.")
                 return False
-        else:
-            task.status = TaskStatus.FAILED
-            task.error_message = report.diagnosis
-            logger.warning(f"Task {task.id} failed quality gates. Retrying with updated capability rules...")
-            return False
+
+        return False
 
     async def run_fleet(self, graph: TaskGraph) -> Dict[str, Any]:
-        """Execute task graph respecting dependencies and running independent tasks in parallel."""
+        """Execute task graph respecting dependencies, cascading blocked states, and running independent tasks in parallel."""
         completed_tasks = set()
         failed_tasks = set()
+        blocked_tasks = set()
 
-        while len(completed_tasks) + len(failed_tasks) < len(graph.tasks):
+        while len(completed_tasks) + len(failed_tasks) + len(blocked_tasks) < len(graph.tasks):
             executable = []
+            made_progress = False
+
             for task_id, task in graph.tasks.items():
                 if task.status == TaskStatus.PENDING:
+                    failed_deps = [dep for dep in task.dependencies if dep in failed_tasks or dep in blocked_tasks]
+                    if failed_deps:
+                        task.status = TaskStatus.BLOCKED
+                        task.error_message = f"Blocked by failed upstream dependency: {', '.join(failed_deps)}"
+                        blocked_tasks.add(task_id)
+                        made_progress = True
+                        continue
+
                     deps_met = all(dep in completed_tasks for dep in task.dependencies)
                     if deps_met:
                         executable.append(task)
 
             if not executable:
-                if len(completed_tasks) + len(failed_tasks) < len(graph.tasks):
-                    logger.error("Deadlock or unresolved dependencies in task graph.")
-                    break
+                if made_progress:
+                    continue
+                if len(completed_tasks) + len(failed_tasks) + len(blocked_tasks) < len(graph.tasks):
+                    logger.error("Deadlock or unresolved cyclic dependencies in task graph.")
                 break
 
             # Dispatch executable tasks concurrently
@@ -175,6 +221,7 @@ class OrchestratorEngine:
             "total_tasks": len(graph.tasks),
             "completed": len(completed_tasks),
             "failed": len(failed_tasks),
+            "blocked": len(blocked_tasks),
             "coordination_messages": len(self.worktree_mgr.read_coordination_messages()),
         }
         return summary

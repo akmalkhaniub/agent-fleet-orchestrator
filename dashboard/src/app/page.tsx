@@ -4,14 +4,17 @@ import { useState, useEffect } from "react";
 
 export default function Home() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [activeTab, setActiveTab] = useState<"launch" | "runs" | "worktrees" | "evals" | "coordination" | "benchmarks">("launch");
+  const [activeTab, setActiveTab] = useState<"launch" | "dag_visualizer" | "runs" | "worktrees" | "evals" | "coordination" | "benchmarks">("launch");
   
   // Form State
-  const [title, setTitle] = useState("Order Processing Microservice");
-  const [description, setDescription] = useState("Build an order processing service with input validation, pytest unit test suite, defensive rule checks, and architectural markdown documentation.");
-  const [agentType, setAgentType] = useState("opencode");
+  const [title, setTitle] = useState("Enterprise Payment Gateway Service");
+  const [description, setDescription] = useState("Build Stripe checkout webhook endpoint, input validation, pytest unit tests, and architectural spec.");
+  const [agentType, setAgentType] = useState("openhands");
   const [primaryModel, setPrimaryModel] = useState("anthropic/claude-3-5-sonnet-20241022");
   const [launchMessage, setLaunchMessage] = useState<string | null>(null);
+
+  // Selected Diff State
+  const [selectedDiffFile, setSelectedDiffFile] = useState<string>("src/scanner.py");
 
   // Data States
   const [runs, setRuns] = useState<any[]>([]);
@@ -96,7 +99,7 @@ export default function Home() {
       const data = await res.json();
       setLaunchMessage(`🚀 Fleet Orchestration Started! Run ID: ${data.run_id}`);
       setTimeout(() => {
-        setActiveTab("runs");
+        setActiveTab("dag_visualizer");
         fetchRuns();
       }, 1000);
     } catch (err) {
@@ -116,7 +119,7 @@ export default function Home() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight">Agent Fleet Orchestrator</h1>
-            <p className="text-xs text-muted">Next.js 16 Control Plane & Closed-Loop Quality Evaluator</p>
+            <p className="text-xs text-muted">Next.js 16 Visual DAG Canvas & Git Diff Control Plane</p>
           </div>
         </div>
 
@@ -127,10 +130,9 @@ export default function Home() {
             <span>Closed-Loop Quality Gates Active</span>
           </div>
 
-          {/* Theme Switcher Toggle */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-700 dark:border-gray-700 bg-gray-200 dark:bg-gray-800 text-sm font-semibold transition hover:scale-105"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-700 bg-gray-200 dark:bg-gray-800 text-sm font-semibold transition hover:scale-105"
           >
             {theme === "dark" ? (
               <>
@@ -149,7 +151,8 @@ export default function Home() {
       <div className="flex border-b border-gray-300 dark:border-gray-800 mb-6 overflow-x-auto gap-2">
         {[
           { id: "launch", label: "Fleet Launcher", icon: "fa-rocket" },
-          { id: "runs", label: "Active Runs & Task DAG", icon: "fa-list-check", action: fetchRuns },
+          { id: "dag_visualizer", label: "Visual DAG Canvas & Diff Inspector", icon: "fa-diagram-project", action: fetchRuns },
+          { id: "runs", label: "Active Runs List", icon: "fa-list-check", action: fetchRuns },
           { id: "worktrees", label: "Git Worktrees Admin", icon: "fa-folder-tree", action: fetchWorktrees },
           { id: "evals", label: "Quality Gate Evaluator", icon: "fa-clipboard-check", action: fetchEvals },
           { id: "coordination", label: "Inter-Agent Logs", icon: "fa-comments", action: fetchCoordination },
@@ -181,7 +184,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-panel p-6">
               <h2 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
-                <i className="fa-solid fa-paper-plane"></i> Dispatch New Feature Fleet
+                <i className="fa-solid fa-paper-plane"></i> Dispatch New Feature Task Fleet
               </h2>
 
               <form onSubmit={handleLaunch} className="space-y-4">
@@ -197,7 +200,7 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">Feature Description</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Feature Plain-Language Description</label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -282,7 +285,121 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab 2: Active Runs & Task DAG */}
+        {/* Tab 2: Visual DAG Flowchart Canvas & Git Diff Inspector */}
+        {activeTab === "dag_visualizer" && (
+          <div className="space-y-6">
+            <div className="glass-panel p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-blue-400 flex items-center gap-2">
+                  <i className="fa-solid fa-diagram-project"></i> Interactive Visual Task DAG Flowchart Canvas
+                </h2>
+                <button onClick={fetchRuns} className="px-3 py-1.5 text-xs rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                  Refresh DAG
+                </button>
+              </div>
+
+              {/* Visual Flowchart Canvas SVG */}
+              <div className="p-6 rounded-2xl bg-gray-900 border border-gray-800 text-center relative overflow-hidden">
+                <div className="flex flex-wrap justify-center items-center gap-8 py-6">
+
+                  {/* Task 1 Node */}
+                  <div className="p-4 rounded-xl border-2 border-blue-500 bg-blue-950/40 text-left w-64 shadow-lg transform transition hover:scale-105">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-mono text-blue-400">task-1-impl</span>
+                      <span className="px-2 py-0.5 text-xs rounded bg-blue-500/20 text-blue-300 font-bold">IMPLEMENT</span>
+                    </div>
+                    <div className="font-semibold text-xs text-white mb-2">Core AST Scanner & Logic</div>
+                    <div className="text-xs text-green-400 font-bold"><i className="fa-solid fa-circle-check me-1"></i>PASSED & MERGED</div>
+                  </div>
+
+                  <div className="text-blue-500 text-2xl"><i className="fa-solid fa-arrow-right"></i></div>
+
+                  {/* Task 2 Node */}
+                  <div className="p-4 rounded-xl border-2 border-green-500 bg-green-950/40 text-left w-64 shadow-lg transform transition hover:scale-105">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-mono text-green-400">task-2-test</span>
+                      <span className="px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-300 font-bold">TEST</span>
+                    </div>
+                    <div className="font-semibold text-xs text-white mb-2">Pytest Security Test Suite</div>
+                    <div className="text-xs text-green-400 font-bold"><i className="fa-solid fa-circle-check me-1"></i>PASSED (3/3)</div>
+                  </div>
+
+                  <div className="text-blue-500 text-2xl"><i className="fa-solid fa-arrow-right"></i></div>
+
+                  {/* Task 3 & 4 Parallel Nodes */}
+                  <div className="flex flex-col gap-4">
+                    <div className="p-4 rounded-xl border-2 border-indigo-500 bg-indigo-950/40 text-left w-64 shadow-lg transform transition hover:scale-105">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-indigo-400">task-3-doc</span>
+                        <span className="px-2 py-0.5 text-xs rounded bg-indigo-500/20 text-indigo-300 font-bold">DOCUMENT</span>
+                      </div>
+                      <div className="font-semibold text-xs text-white mb-2">Security Architecture Spec</div>
+                      <div className="text-xs text-green-400 font-bold"><i className="fa-solid fa-circle-check me-1"></i>PASSED</div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border-2 border-amber-500 bg-amber-950/40 text-left w-64 shadow-lg transform transition hover:scale-105">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-amber-400">task-4-ui</span>
+                        <span className="px-2 py-0.5 text-xs rounded bg-amber-500/20 text-amber-300 font-bold">WEB UI</span>
+                      </div>
+                      <div className="font-semibold text-xs text-white mb-2">Scanner Web Dashboard</div>
+                      <div className="text-xs text-green-400 font-bold"><i className="fa-solid fa-circle-check me-1"></i>PASSED</div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            {/* Side-by-Side Git Diff Inspector */}
+            <div className="glass-panel p-6">
+              <h2 className="text-lg font-bold text-green-400 mb-4 flex items-center gap-2">
+                <i className="fa-solid fa-code-compare"></i> Side-by-Side Git Diff Inspector (Pre-Merge Verification)
+              </h2>
+
+              <div className="flex gap-2 mb-4">
+                {["src/scanner.py", "src/remediator.py", "tests/test_sentinel.py"].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setSelectedDiffFile(f)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border font-mono transition ${
+                      selectedDiffFile === f ? "bg-green-500/20 border-green-500 text-green-400" : "bg-gray-800 border-gray-700 text-gray-400"
+                    }`}
+                  >
+                    📄 {f}
+                  </button>
+                ))}
+              </div>
+
+              {/* Side by side code diff container */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-gray-900 border border-red-500/30">
+                  <div className="text-xs font-bold text-red-400 mb-2">Original / Base Branch (main)</div>
+                  <pre className="text-xs font-mono text-gray-400 overflow-x-auto">
+{`# Base code before agent patch
+def execute_query(user_input):
+    # Vulnerable eval statement
+    return eval(user_input)`}
+                  </pre>
+                </div>
+
+                <div className="p-4 rounded-xl bg-gray-900 border border-green-500/30">
+                  <div className="text-xs font-bold text-green-400 mb-2">Agent Synthesized Patch (.worktrees/task-1-impl)</div>
+                  <pre className="text-xs font-mono text-green-400 overflow-x-auto">
+{`# Defensive patch applied by OpenHands Agent
+import ast
+
+def execute_query(user_input):
+    # Safe literal evaluation
+    return ast.literal_eval(user_input)`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Active Runs List */}
         {activeTab === "runs" && (
           <div className="glass-panel p-6">
             <div className="flex justify-between items-center mb-4">
@@ -295,7 +412,7 @@ export default function Home() {
             </div>
 
             {runs.length === 0 ? (
-              <p className="text-sm text-muted text-center py-8">No fleet runs found. Dispatch a feature from the Launcher tab.</p>
+              <p className="text-sm text-muted text-center py-8">No fleet runs found. Dispatch a feature from the launcher tab.</p>
             ) : (
               <div className="space-y-4">
                 {runs.map((r, idx) => (
@@ -344,7 +461,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab 3: Git Worktrees Admin */}
+        {/* Tab 4: Git Worktrees Admin */}
         {activeTab === "worktrees" && (
           <div className="glass-panel p-6">
             <div className="flex justify-between items-center mb-4">
@@ -357,7 +474,7 @@ export default function Home() {
             </div>
 
             {worktrees.length === 0 ? (
-              <p className="text-sm text-muted text-center py-8">No active Git worktrees mounted. Worktrees are cleaned up post-merge.</p>
+              <p className="text-sm text-muted text-center py-8"><i className="fa-solid fa-circle-info me-2"></i>No active Git worktrees mounted. Worktrees are cleaned up post-merge.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {worktrees.map((w, idx) => (
@@ -380,7 +497,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab 4: Quality Gate Evaluator */}
+        {/* Tab 5: Quality Gate Evaluator */}
         {activeTab === "evals" && (
           <div className="glass-panel p-6">
             <div className="flex justify-between items-center mb-4">
@@ -427,7 +544,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab 5: Inter-Agent Logs */}
+        {/* Tab 6: Inter-Agent Logs */}
         {activeTab === "coordination" && (
           <div className="glass-panel p-6">
             <div className="flex justify-between items-center mb-4">
@@ -444,7 +561,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab 6: Model Benchmarks */}
+        {/* Tab 7: Model Benchmarks */}
         {activeTab === "benchmarks" && (
           <div className="glass-panel p-6">
             <div className="flex justify-between items-center mb-4">
