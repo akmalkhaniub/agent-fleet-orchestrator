@@ -1,7 +1,7 @@
 [
   {
     "id": "AFO-001",
-    "status": "TODO",
+    "status": "DONE",
     "priority": 1,
     "title": "Add Dynamic Self-Healing Retry Loop in OrchestratorEngine",
     "description": "Enhance `OrchestratorEngine.run_fleet` in `core/orchestrator.py` to support dynamic retry loops. If a task fails quality gates, capture gate failure diagnostics (AST violations or test failures), format them into a prompt feedback message, and allow the agent worker up to 3 retry attempts before marking the task as failed/quarantined.",
@@ -13,7 +13,7 @@
   },
   {
     "id": "AFO-002",
-    "status": "TODO",
+    "status": "DONE",
     "priority": 2,
     "title": "Implement Automated Worktree Garbage Collector",
     "description": "Add `cleanup_stale_worktrees(max_age_hours=24)` to `worktrees/manager.py` to prune orphaned `.worktrees/task-*` folders and delete merged git branches automatically.",
@@ -25,7 +25,7 @@
   },
   {
     "id": "AFO-003",
-    "status": "TODO",
+    "status": "DONE",
     "priority": 3,
     "title": "Add Universal TASKS.json Backlog Ingestion to CLI",
     "description": "Add a `python cli.py daemon --repo <path>` command that reads any target repository's `TASKS.json`, dispatches tasks through the fleet, and writes completion status back to the JSON file.",

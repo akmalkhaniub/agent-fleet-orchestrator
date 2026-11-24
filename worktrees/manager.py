@@ -120,15 +120,70 @@ class WorktreeManager:
             shutil.rmtree(worktree_path, ignore_errors=True)
         logger.info(f"Cleaned up worktree and branch for task {task_id}")
 
+    def cleanup_stale_worktrees(self, max_age_hours: float = 24.0) -> Dict[str, List[str]]:
+        """Prune orphaned .worktrees/* directories older than max_age_hours and delete merged feat/* branches."""
+        pruned_worktrees: List[str] = []
+        deleted_branches: List[str] = []
+
+        self._run_git(["worktree", "prune"])
+
+        now_ts = datetime.datetime.now(datetime.timezone.utc).timestamp()
+        max_age_seconds = max(0.0, max_age_hours) * 3600.0
+
+        if os.path.exists(self.worktree_base_dir):
+            for entry in sorted(os.listdir(self.worktree_base_dir)):
+                entry_path = os.path.join(self.worktree_base_dir, entry)
+                if not os.path.isdir(entry_path):
+                    continue
+                try:
+                    mtime = os.path.getmtime(entry_path)
+                except OSError:
+                    continue
+
+                age_seconds = now_ts - mtime
+                if age_seconds >= max_age_seconds:
+                    self._run_git(["worktree", "remove", "--force", entry_path])
+                    if os.path.exists(entry_path):
+                        shutil.rmtree(entry_path, ignore_errors=True)
+                    pruned_worktrees.append(entry)
+
+                    branch_name = f"feat/{entry}"
+                    del_res = self._run_git(["branch", "-D", branch_name])
+                    if del_res.returncode == 0:
+                        deleted_branches.append(branch_name)
+
+        self._run_git(["worktree", "prune"])
+
+        # Delete any remaining merged feat/* branches cleanly
+        merged_res = self._run_git(["branch", "--merged", "HEAD"])
+        if merged_res.returncode == 0:
+            for raw_line in merged_res.stdout.splitlines():
+                branch = raw_line.strip().lstrip("* ").strip()
+                if branch.startswith("feat/") and branch not in deleted_branches:
+                    del_res = self._run_git(["branch", "-d", branch])
+                    if del_res.returncode == 0:
+                        deleted_branches.append(branch)
+
+        logger.info(
+            "Worktree GC complete: pruned %d worktrees, deleted %d branches",
+            len(pruned_worktrees),
+            len(deleted_branches),
+        )
+        return {
+            "pruned_worktrees": pruned_worktrees,
+            "deleted_branches": deleted_branches,
+        }
+
     def post_coordination_message(self, sender_id: str, payload: Dict[str, Any]) -> str:
         """Drop status message in /coordination directory for file-based agent communication."""
-        ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        ts = now_utc.strftime("%Y%m%d_%H%M%S_%f")
         filename = f"msg_{ts}_{sender_id}.json"
         filepath = os.path.join(self.coordination_dir, filename)
 
         data = {
             "sender": sender_id,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": now_utc.isoformat(),
             "payload": payload,
         }
 

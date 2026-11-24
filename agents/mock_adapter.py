@@ -37,7 +37,9 @@ class MockAgentAdapter(BaseAgentAdapter):
         self._runs[run_id] = {
             "run": run,
             "task": task,
-            "logs": [f"[{datetime.datetime.utcnow().isoformat()}] MockAgent generated synthesized target files."],
+            "logs": [
+                f"[{datetime.datetime.now(datetime.timezone.utc).isoformat()}] MockAgent generated synthesized target files."
+            ],
         }
         return run
 

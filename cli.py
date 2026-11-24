@@ -5,6 +5,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from core.orchestrator import OrchestratorEngine
+from core.backlog import run_backlog_daemon
 from worktrees.manager import WorktreeManager
 from models.router import ModelRouter
 
@@ -82,6 +83,51 @@ def model_benchmarks():
         table.add_row(k, str(v["latency_ms"]), v["status"])
 
     console.print(table)
+
+
+@app.command("gc")
+def gc_worktrees(
+    max_age_hours: float = typer.Option(24.0, "--max-age-hours", help="Prune orphaned worktrees older than this many hours"),
+):
+    """Run automated garbage collection on stale .worktrees/* directories and merged feat/* branches."""
+    result = worktree_mgr.cleanup_stale_worktrees(max_age_hours=max_age_hours)
+    console.print(Panel.fit(
+        f"[bold cyan]Worktree Garbage Collection[/bold cyan]\n"
+        f"Pruned Worktrees: [yellow]{len(result['pruned_worktrees'])}[/yellow]\n"
+        f"Deleted Branches: [green]{len(result['deleted_branches'])}[/green]",
+        border_style="cyan",
+    ))
+
+
+@app.command("daemon")
+def daemon_backlog(
+    repo: str = typer.Option(".", "--repo", "-r", help="Target repository path containing TASKS.json"),
+    max_retries: int = typer.Option(3, "--max-retries", help="Max self-healing retries per task"),
+    agent_type: str = typer.Option("mock_agent", "--agent", help="Agent adapter key to execute backlog tasks"),
+    cleanup_stale: bool = typer.Option(False, "--cleanup-stale", help="Prune stale worktrees before dispatch"),
+):
+    """Ingest a repository's TASKS.json backlog, execute TODO tasks in priority order, and persist statuses."""
+    summary = asyncio.run(
+        run_backlog_daemon(
+            repo_path=repo,
+            max_retries=max_retries,
+            agent_type=agent_type,
+            cleanup_stale=cleanup_stale,
+        )
+    )
+    table = Table(title=f"Backlog Daemon Results ({summary['repo_path']})", show_header=True, header_style="bold cyan")
+    table.add_column("Task ID", style="dim")
+    table.add_column("Status", style="green")
+    table.add_column("Retries")
+    table.add_column("Traceparent")
+    for item in summary["items"]:
+        table.add_row(item["id"], item["status"], str(item["retries"]), item.get("traceparent") or "-")
+    console.print(table)
+    console.print(
+        f"[bold green]Processed:[/bold green] {summary['processed']} | "
+        f"[cyan]Completed:[/cyan] {summary['completed']} | "
+        f"[red]Quarantined:[/red] {summary['quarantined']}"
+    )
 
 
 @app.command("dashboard")
